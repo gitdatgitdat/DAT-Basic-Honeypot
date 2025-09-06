@@ -5,6 +5,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from logger import DualLogger, Summary
+from utils import rotate_and_compress_logs
 
 # Simple banners per-port (can be customized)
 DEFAULT_BANNERS = {
@@ -15,13 +16,6 @@ DEFAULT_BANNERS = {
     8080:  b"HTTP/1.1 400 Bad Request\r\nServer: Apache\r\nContent-Length: 0\r\n\r\n",
     445:   b"\x00",  # just something to keep the socket open briefly
 }
-
-def now_utc():
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
-
-def hexdump(b: bytes, max_bytes: int = 256) -> str:
-    b = b[:max_bytes]
-    return " ".join(f"{x:02x}" for x in b)
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
@@ -94,9 +88,22 @@ def main():
     ap.add_argument("--log-format", choices=["jsonl", "txt"], default="jsonl", help="Log format (default: jsonl).")
     ap.add_argument("--capture-bytes", type=int, default=512, help="Max bytes to capture per connection (default: 512).")
     ap.add_argument("--timeout", type=float, default=10.0, help="Socket timeout seconds (default: 10).")
+    ap.add_argument("--retain-days", type=int, default=7,
+                help="Delete logs older than this many days (default: 7).")
+    ap.add_argument("--compress-old", action="store_true",
+                help="Gzip-compress logs older than 1 day.")
     ap.add_argument("--no-banners", action="store_true", help="Do not send service banners.")
     args = ap.parse_args()
     
+    stats = rotate_and_compress_logs(
+        Path(args.log_dir),
+        retain_days=args.retain_days,
+        compress_old=args.compress_old,
+        compress_after_days=1,
+    )
+    if stats["compressed"] or stats["deleted"]:
+        print(f"[*] Log maintenance: compressed={stats['compressed']} deleted={stats['deleted']}")
+
     log_dir = Path(getattr(args, "log_dir", "logs"))
     logger = DualLogger(log_dir=log_dir)
     summary = Summary()
@@ -134,8 +141,16 @@ def main():
                 srv.server_close()
             except Exception:
                 pass
+        stats = rotate_and_compress_logs(
+            Path(args.log_dir),
+            retain_days=args.retain_days,
+            compress_old=args.compress_old,
+            compress_after_days=1,
+        )
+        if stats["compressed"] or stats["deleted"]:
+            print(f"[*] Log maintenance: compressed={stats['compressed']} deleted={stats['deleted']}")
         print(summary.render())
-        print("[*] Goodbye.")
+        print("[*] Goodbye.")        
 
 if __name__ == "__main__":
     main()
