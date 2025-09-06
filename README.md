@@ -89,12 +89,6 @@ This hex decodes to a standard HTTP GET request.
 
 ## Next Steps
 
-Add ASCII preview alongside hex payloads
-
-Implement fake banners for protocols (e.g., SSH, HTTP)
-
-Summarize logs by port/IP for quick analysis
-
 Add support for rotating or compressing old logs
 
 ---
