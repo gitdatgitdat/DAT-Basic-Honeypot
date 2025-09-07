@@ -49,6 +49,10 @@ python honeypot.py --ports 2222,8080
 
 --max-bytes : Max bytes to capture per connection (default: 1024)
 
+--retain-days N : Retention period for logs
+
+--compress-old : Compression of old logs
+
 ---
 
 ## Example Runs
@@ -84,12 +88,6 @@ Resulting log entry:
 }`
 
 This hex decodes to a standard HTTP GET request.
-
----
-
-## Next Steps
-
-Add support for rotating or compressing old logs
 
 ---
 
